@@ -123,26 +123,14 @@ npx serve .
 
 ---
 
-## 🌐 Deploy to GitHub Pages
-
-```bash
-git init
-git add solar-system.html
-git commit -m "🪐 Initial launch: CosmosExplorer 3D"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/cosmos-explorer-3d.git
-git push -u origin main
-```
-
-Then go to **Settings → Pages → Branch: main → / (root) → Save**
-
-Your live URL: `https://YOUR_USERNAME.github.io/cosmos-explorer-3d/solar-system.html`
+Your live URL: `https://arunavaghosh42428.github.io/cosmos-explorer-3d/`
 
 ---
 
 ## 📸 Screenshots
 
-> *(Add screenshots of the solar system, planet profiles, gravity simulator, and motion panel)*
+> 
+<img width="1920" height="1118" alt="Screenshot 2026-03-04 at 2 52 07 PM" src="https://github.com/user-attachments/assets/80b75fb4-66b3-4cff-b12a-999bd7e8955d" />
 
 ---
 
