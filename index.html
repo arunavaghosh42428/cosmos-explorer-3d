@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CosmosExplorer – 3D Solar System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--bg:#020816;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);--accent:#4f9eff;--accent2:#a78bfa;--text:#e8eaf6;--muted:#7986cb;--glow:0 0 20px rgba(79,158,255,0.4)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;color:var(--text)}
+canvas#c{display:block;position:fixed;top:0;left:0;z-index:0}
+#nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:rgba(2,8,22,0.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-logo{font-size:1.2rem;font-weight:700;letter-spacing:.05em;color:#fff;display:flex;align-items:center;gap:8px}
+.nav-logo span{color:var(--accent)}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{padding:6px 14px;border-radius:20px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;font-weight:500;transition:all .2s}
+.nav-tab:hover,.nav-tab.active{background:var(--surface);color:#fff}
+.nav-right{display:flex;gap:10px;align-items:center}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s}
+.icon-btn:hover{color:#fff;border-color:var(--accent);box-shadow:var(--glow)}
+#searchWrap{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:100;width:min(380px,90vw);display:none}
+#searchWrap.show{display:block}
+#searchInput{width:100%;padding:10px 16px;border-radius:24px;border:1px solid var(--accent);background:rgba(2,8,22,0.9);color:#fff;font-size:.95rem;outline:none;backdrop-filter:blur(8px)}
+#searchResults{margin-top:6px;border-radius:12px;border:1px solid var(--border);background:rgba(2,8,22,0.95);backdrop-filter:blur(12px);overflow:hidden}
+.search-item{padding:10px 16px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;gap:10px;transition:background .15s}
+.search-item:hover{background:var(--surface)}
+.search-dot{width:10px;height:10px;border-radius:50%}
+#leftPanel{position:fixed;left:0;top:56px;bottom:0;width:280px;background:rgba(2,8,22,0.88);backdrop-filter:blur(12px);border-right:1px solid var(--border);z-index:90;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;transform:translateX(-100%);transition:transform .3s}
+#leftPanel.open{transform:translateX(0)}
+.panel-title{font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.planet-btn{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:none;background:transparent;color:var(--text);cursor:pointer;font-size:.88rem;transition:all .2s;text-align:left;width:100%}
+.planet-btn:hover{background:var(--surface)}
+.planet-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.planet-info-mini{margin-left:auto;font-size:.75rem;color:var(--muted)}
+#rightPanel{position:fixed;right:0;top:56px;bottom:0;width:320px;background:rgba(2,8,22,0.93);backdrop-filter:blur(14px);border-left:1px solid var(--border);z-index:90;overflow-y:auto;padding:20px;transform:translateX(100%);transition:transform .3s}
+#rightPanel.open{transform:translateX(0)}
+.profile-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.profile-sphere{width:56px;height:56px;border-radius:50%;flex-shrink:0;box-shadow:0 0 16px rgba(255,255,255,.15)}
+.profile-name{font-size:1.4rem;font-weight:700}
+.profile-type{font-size:.8rem;color:var(--muted)}
+.profile-close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.stat-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.stat-value{font-size:.95rem;font-weight:600}
+.profile-section{margin-bottom:14px}
+.profile-section h4{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:6px}
+.profile-section p{font-size:.85rem;line-height:1.55}
+.fun-fact{background:linear-gradient(135deg,rgba(79,158,255,.1),rgba(167,139,250,.1));border:1px solid rgba(79,158,255,.2);border-radius:10px;padding:10px 12px;font-size:.84rem;font-style:italic;margin-top:8px}
+.moon-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.moon-chip{padding:2px 8px;border-radius:20px;border:1px solid var(--border);font-size:.75rem;color:var(--muted)}
+.myth-card{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:10px;padding:10px 12px;font-size:.83rem;line-height:1.5}
+#hud{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:10px;background:rgba(2,8,22,0.88);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:40px;padding:8px 20px}
+.hud-group{display:flex;align-items:center;gap:6px}
+.hud-label{font-size:.7rem;color:var(--muted);white-space:nowrap}
+.hud-val{font-size:.8rem;font-weight:600;color:var(--accent)}
+.hud-divider{width:1px;height:24px;background:var(--border)}
+.hud-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.78rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.hud-btn:hover{background:rgba(79,158,255,.2);border-color:var(--accent);color:var(--accent)}
+#timePanel{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(2,8,22,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:16px;padding:16px 22px;min-width:340px;display:none}
+#timePanel.show{display:block}
+#timePanel h3{font-size:.85rem;margin-bottom:10px;color:var(--accent)}
+#timeSlider{width:100%;accent-color:var(--accent);margin-bottom:6px}
+#timeDisplay{font-size:.82rem;color:var(--muted);text-align:center}
+.preset-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.preset-btn{padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:.74rem;cursor:pointer;transition:all .2s}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:rgba(5,15,40,.98);border:1px solid var(--border);border-radius:20px;padding:28px;width:min(480px,92vw);max-height:80vh;overflow-y:auto}
+.modal h2{font-size:1.2rem;margin-bottom:4px}
+.modal .sub{font-size:.83rem;color:var(--muted);margin-bottom:18px}
+.quiz-q{font-size:.95rem;margin-bottom:14px;line-height:1.5}
+.quiz-options{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.quiz-opt{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:.88rem;text-align:left;transition:all .2s}
+.quiz-opt:hover{border-color:var(--accent);background:rgba(79,158,255,.1)}
+.quiz-opt.correct{border-color:#4caf50;background:rgba(76,175,80,.15);color:#4caf50}
+.quiz-opt.wrong{border-color:#f44336;background:rgba(244,67,54,.15);color:#f44336}
+.quiz-score{font-size:1.1rem;font-weight:700;color:var(--accent);text-align:center;margin:10px 0}
+.modal-close{float:right;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+.btn-primary{padding:9px 20px;border-radius:20px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;cursor:pointer;font-size:.88rem}
+#comparePanel{display:none}
+#comparePanel.show{display:block;position:fixed;bottom:70px;right:20px;z-index:100;background:rgba(2,8,22,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:16px;padding:16px;width:290px}
+#comparePanel h3{font-size:.85rem;color:var(--accent);margin-bottom:10px}
+.compare-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.compare-row select{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;padding:5px 8px;font-size:.82rem}
+#compareCanvas{width:100%;height:120px;margin-top:8px;border-radius:8px;background:rgba(0,0,0,.3)}
+#toast{position:fixed;top:70px;right:20px;z-index:300;background:rgba(5,15,40,.97);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;font-size:.84rem;max-width:260px;transform:translateX(120%);transition:transform .3s;line-height:1.5}
+#toast.show{transform:translateX(0)}
+#gravPanel{display:none}
+#gravPanel.show{display:block;position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(2,8,22,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:16px;padding:16px 22px;width:min(420px,92vw)}
+#gravPanel h3{font-size:.85rem;color:var(--accent);margin-bottom:8px}
+#gravCanvas{width:100%;height:220px;border-radius:10px;background:#000;border:1px solid var(--border);cursor:crosshair}
+#missionPanel{display:none}
+#missionPanel.show{display:block;position:fixed;left:20px;top:66px;z-index:100;background:rgba(2,8,22,0.95);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:16px;padding:16px;width:300px;max-height:70vh;overflow-y:auto}
+#missionPanel h3{font-size:.85rem;color:var(--accent);margin-bottom:10px}
+.mission-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.mission-name{font-size:.9rem;font-weight:600;margin-bottom:3px}
+.mission-status{font-size:.72rem;padding:2px 7px;border-radius:10px;display:inline-block;margin-bottom:5px}
+.mission-active{background:rgba(76,175,80,.2);color:#4caf50;border:1px solid #4caf50}
+.mission-ended{background:rgba(150,150,150,.2);color:#aaa;border:1px solid #555}
+.mission-desc{font-size:.79rem;color:var(--muted);line-height:1.45}
+#audioBar{position:fixed;top:66px;right:20px;z-index:100;background:rgba(2,8,22,.9);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:.78rem;color:var(--muted);display:none;align-items:center;gap:6px}
+#audioBar.show{display:flex}
+.audio-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── MOTION SENSOR ── */
+#motionBtn{position:relative}
+#motionBtn.active{color:var(--accent)!important;border-color:var(--accent)!important;box-shadow:var(--glow)!important}
+#motionHUD{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:105;
+  background:rgba(2,8,22,0.96);backdrop-filter:blur(14px);
+  border:1px solid var(--accent);border-radius:20px;padding:16px 22px;
+  width:min(360px,92vw);display:none;pointer-events:auto}
+#motionHUD.show{display:block}
+#motionHUD h3{font-size:.88rem;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.motion-viz{width:100%;height:90px;position:relative;margin-bottom:12px}
+.motion-horizon{position:absolute;inset:0;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#0a1628 50%,#1a0a08 50%)}
+.motion-sky{position:absolute;inset:0;border-radius:12px;overflow:hidden}
+.motion-line{position:absolute;left:0;right:0;height:2px;background:rgba(79,158,255,.7);top:50%;transform-origin:center;transition:transform .1s linear}
+.motion-bubble{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);top:50%;left:50%;transform:translate(-50%,-50%);transition:transform .1s linear}
+.motion-crosshair{position:absolute;inset:0;pointer-events:none}
+.motion-crosshair::before,.motion-crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.15)}
+.motion-crosshair::before{width:1px;height:100%;left:50%}
+.motion-crosshair::after{height:1px;width:100%;top:50%}
+.motion-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.motion-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;text-align:center}
+.motion-stat-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.motion-stat-val{font-size:.92rem;font-weight:700;color:#fff;margin-top:2px}
+.motion-controls{display:flex;gap:8px;align-items:center}
+.motion-toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.motion-sensitivity{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);flex:1}
+.motion-sensitivity input[type=range]{flex:1;accent-color:var(--accent)}
+.motion-live-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;animation:pulse 1s infinite;display:inline-block;margin-right:4px}
+.motion-off-dot{width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;margin-right:4px}
+#motionStatus{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+.motion-permission-box{background:rgba(79,158,255,.08);border:1px solid rgba(79,158,255,.2);border-radius:10px;padding:12px;text-align:center;font-size:.83rem;line-height:1.5;color:var(--text)}
+.motion-permission-box p{margin-bottom:10px;color:var(--muted)}
+#a11yBar{position:fixed;bottom:70px;left:20px;z-index:100;background:rgba(2,8,22,.95);border:1px solid var(--border);border-radius:14px;padding:12px;display:none}
+#a11yBar.show{display:block}
+#a11yBar h4{font-size:.75rem;color:var(--accent);margin-bottom:8px}
+.a11y-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:.8rem;gap:20px}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider-t{position:absolute;inset:0;border-radius:20px;background:#333;cursor:pointer;transition:.3s}
+.slider-t:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.3s}
+input:checked+.slider-t{background:var(--accent)}
+input:checked+.slider-t:before{transform:translateX(16px)}
+body.high-contrast{--bg:#000;--text:#fff;--muted:#ccc;--surface:rgba(255,255,255,.1);--border:rgba(255,255,255,.3)}
+.pers-question{font-size:.95rem;margin-bottom:12px}
+.pers-opts{display:flex;flex-direction:column;gap:7px}
+.pers-opt{padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:.85rem;text-align:left;transition:all .2s}
+.pers-opt:hover{border-color:var(--accent2);background:rgba(167,139,250,.1)}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#loading{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .8s}
+#loading.done{opacity:0;pointer-events:none}
+.load-ring{width:60px;height:60px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-size:1rem;color:var(--muted)}
+@media(max-width:640px){#leftPanel{width:240px}#rightPanel{width:280px}.nav-tab{display:none}.nav-tab:first-child{display:block}#hud{gap:5px;padding:6px 10px}.hud-btn{padding:4px 8px;font-size:.7rem}}
+</style>
+</head>
+<body>
+<div id="loading"><div class="load-ring"></div><div class="load-text" id="loadText">Generating planet textures...</div></div>
+<canvas id="c"></canvas>
+
+<nav id="nav">
+  <div class="nav-logo">🪐 <span>Cosmos</span>Explorer</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active">Solar System</button>
+    <button class="nav-tab" onclick="openModal('quizModal')">Quiz</button>
+    <button class="nav-tab" onclick="openModal('persModal')">Personality</button>
+    <button class="nav-tab" onclick="toggleMissions()">Missions</button>
+    <button class="nav-tab" onclick="toggleCompare()">Compare</button>
+  </div>
+  <div class="nav-right">
+    <button class="icon-btn" onclick="toggleSearch()">🔍</button>
+    <button class="icon-btn" onclick="toggleLeft()">☰</button>
+    <button class="icon-btn" onclick="toggleTime()">⏱</button>
+    <button class="icon-btn" onclick="toggleGrav()">⚡</button>
+    <button class="icon-btn" onclick="toggleAudio()">🔊</button>
+    <button class="icon-btn" id="motionBtn" onclick="toggleMotionPanel()" title="Motion Sensor">📡</button>
+    <button class="icon-btn" onclick="toggleA11y()">♿</button>
+  </div>
+</nav>
+
+<div id="searchWrap">
+  <input id="searchInput" type="text" placeholder="Search planets..." oninput="doSearch(this.value)"/>
+  <div id="searchResults"></div>
+</div>
+
+<div id="leftPanel">
+  <div>
+    <div class="panel-title">Celestial Bodies</div>
+    <div id="planetList" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+  <div style="margin-top:12px">
+    <div class="panel-title">Quick Facts</div>
+    <div id="quickFacts" style="font-size:.8rem;color:var(--muted);line-height:1.7"></div>
+  </div>
+</div>
+
+<div id="rightPanel">
+  <div class="profile-header">
+    <div class="profile-sphere" id="profSphere"></div>
+    <div><div class="profile-name" id="profName"></div><div class="profile-type" id="profType"></div></div>
+    <button class="profile-close" onclick="closeRight()">✕</button>
+  </div>
+  <div class="stat-grid" id="profStats"></div>
+  <div class="profile-section"><h4>Atmosphere</h4><p id="profAtmo"></p></div>
+  <div class="profile-section"><h4>Composition</h4><p id="profComp"></p></div>
+  <div class="profile-section" id="moonSection"><h4>Known Moons</h4><div class="moon-chips" id="profMoons"></div></div>
+  <div class="profile-section"><h4>Mythology</h4><div class="myth-card" id="profMyth"></div></div>
+  <div class="fun-fact" id="profFact"></div>
+</div>
+
+<div id="hud">
+  <div class="hud-group"><span class="hud-label">Focus:</span><span class="hud-val" id="hudFocus">Sun</span></div>
+  <div class="hud-divider"></div>
+  <div class="hud-group"><span class="hud-label">Date:</span><span class="hud-val" id="hudDate"></span></div>
+  <div class="hud-divider"></div>
+  <button class="hud-btn" id="btnOrbits" onclick="toggleOrbits()">Orbits ON</button>
+  <button class="hud-btn" id="btnLabels" onclick="toggleLabels()">Labels ON</button>
+  <button class="hud-btn" id="btnSpeed" onclick="cycleSpeed()">1x Speed</button>
+  <button class="hud-btn" onclick="resetCamera()">Reset</button>
+  <button class="hud-btn" id="btnPause" onclick="togglePause()">⏸ Pause</button>
+</div>
+
+<div id="timePanel">
+  <h3>⏱ Time Travel</h3>
+  <input type="range" id="timeSlider" min="-18250" max="18250" value="0" oninput="onTimeSlide(this.value)">
+  <div id="timeDisplay"></div>
+  <div class="preset-btns">
+    <button class="preset-btn" onclick="setTP(-18250)">1975</button>
+    <button class="preset-btn" onclick="setTP(-730)">-2yr</button>
+    <button class="preset-btn" onclick="setTP(0)">Today</button>
+    <button class="preset-btn" onclick="setTP(730)">+2yr</button>
+    <button class="preset-btn" onclick="setTP(18250)">2075</button>
+  </div>
+</div>
+
+<div id="comparePanel">
+  <h3>📏 Size Comparison</h3>
+  <div class="compare-row"><label style="font-size:.78rem;color:var(--muted)">A:</label><select id="compA" onchange="drawCompare()"></select></div>
+  <div class="compare-row"><label style="font-size:.78rem;color:var(--muted)">B:</label><select id="compB" onchange="drawCompare()"></select></div>
+  <canvas id="compareCanvas"></canvas>
+  <div id="compareText" style="font-size:.75rem;color:var(--muted);margin-top:6px;text-align:center"></div>
+</div>
+
+<div id="gravPanel">
+  <h3>⚡ Gravity Simulator</h3>
+  <canvas id="gravCanvas" width="380" height="220"></canvas>
+  <div style="font-size:.78rem;color:var(--muted);margin-top:6px">Click to launch objects toward the sun</div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="hud-btn" onclick="clearGrav()">Clear</button>
+    <button class="hud-btn" onclick="addRandGrav()">Random</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="quizModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('quizModal')">✕</button>
+    <h2>🚀 Space Quiz</h2><p class="sub">Test your astronomy knowledge!</p>
+    <div id="quizContent"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="persModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('persModal')">✕</button>
+    <h2>🌟 Which Planet Are You?</h2><p class="sub">Answer 5 questions to find out</p>
+    <div id="persContent"></div>
+  </div>
+</div>
+
+<div id="missionPanel">
+  <h3>🛸 Space Missions</h3>
+  <div id="missionList"></div>
+</div>
+
+<div id="audioBar"><div class="audio-dot"></div><span>Audio Tour Active</span></div>
+
+<div id="a11yBar">
+  <h4>♿ Accessibility</h4>
+  <div class="a11y-row"><span>High Contrast</span><label class="toggle"><input type="checkbox" onchange="document.body.classList.toggle('high-contrast',this.checked)"><span class="slider-t"></span></label></div>
+  <div class="a11y-row"><span>Large Text</span><label class="toggle"><input type="checkbox" onchange="document.body.style.fontSize=this.checked?'112%':''"><span class="slider-t"></span></label></div>
+  <div class="a11y-row"><span>Reduced Motion</span><label class="toggle"><input type="checkbox" onchange="reducedMotion=this.checked"><span class="slider-t"></span></label></div>
+  <div class="a11y-row"><span>Text-to-Speech</span><label class="toggle"><input type="checkbox" onchange="ttsOn=this.checked"><span class="slider-t"></span></label></div>
+</div>
+
+<!-- MOTION SENSOR HUD -->
+<div id="motionHUD">
+  <h3>
+    <span id="motionLiveDot" class="motion-off-dot"></span>
+    📡 Motion Sensor
+    <button onclick="document.getElementById('motionHUD').classList.remove('show')" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:0">✕</button>
+  </h3>
+
+  <div id="motionPermBox" class="motion-permission-box" style="display:none">
+    <div style="font-size:1.6rem;margin-bottom:8px">📱</div>
+    <p style="margin-bottom:10px">Tap the button below to allow this page to use your device gyroscope.</p>
+    <button class="btn-primary" id="motionPermBtn" style="width:100%;padding:12px" onclick="requestMotionPermission()">
+      🔓 Allow Motion Access
+    </button>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:8px">A system prompt will appear — tap Allow.</div>
+  </div>
+
+  <div id="motionDeniedBox" style="display:none;background:rgba(244,67,54,.08);border:1px solid rgba(244,67,54,.3);border-radius:10px;padding:12px;font-size:.83rem;line-height:1.6">
+    <div style="color:#ef5350;font-weight:700;margin-bottom:6px">⚠️ Permission was denied</div>
+    <div style="color:var(--muted);margin-bottom:8px">To re-enable motion on iOS, go to:<br><strong style="color:var(--text)">Settings → Safari → Clear History &amp; Website Data</strong>, then return here and tap Allow again.</div>
+    <button class="btn-primary" style="width:100%;margin-bottom:8px" onclick="retryMotionPermission()">↺ Try Again</button>
+    <button class="hud-btn" style="width:100%" onclick="startKeyboardMode()">⌨️ Use Keyboard Mode Instead</button>
+  </div>
+
+  <div id="motionMain" style="display:none">
+    <div id="motionModeBadge" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.72rem;margin-bottom:10px"></div>
+    <div class="motion-viz">
+      <div class="motion-horizon"></div>
+      <div class="motion-crosshair"></div>
+      <div class="motion-line" id="motionLine"></div>
+      <div class="motion-bubble" id="motionBubble"></div>
+    </div>
+    <div class="motion-stats">
+      <div class="motion-stat"><div class="motion-stat-label">Alpha α</div><div class="motion-stat-val" id="mAlpha">—</div></div>
+      <div class="motion-stat"><div class="motion-stat-label">Beta β</div><div class="motion-stat-val" id="mBeta">—</div></div>
+      <div class="motion-stat"><div class="motion-stat-label">Gamma γ</div><div class="motion-stat-val" id="mGamma">—</div></div>
+    </div>
+    <div class="motion-toggle-row" style="margin-bottom:10px">
+      <span style="font-size:.85rem;font-weight:700">Motion Control</span>
+      <label class="toggle" style="width:44px;height:24px">
+        <input type="checkbox" id="motionToggle" onchange="onMotionToggle(this.checked)">
+        <span class="slider-t"></span>
+      </label>
+    </div>
+    <div class="motion-sensitivity" style="margin-bottom:10px">
+      <span style="white-space:nowrap;font-size:.8rem">Sensitivity</span>
+      <input type="range" id="motionSens" min="1" max="10" value="5">
+      <span id="motionSensVal" style="min-width:14px;text-align:right">5</span>
+    </div>
+    <div id="kbHint" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.76rem;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <strong style="color:var(--text)">Arrow Keys:</strong> ← → rotate · ↑ ↓ tilt<br>
+      <strong style="color:var(--text)">Shift + Arrow:</strong> fine control
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="hud-btn" style="flex:1" onclick="calibrateMotion()">⊕ Calibrate</button>
+      <button class="hud-btn" style="flex:1" onclick="resetMotionCam()">↺ Reset</button>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:8px;line-height:1.45" id="motionHint">Tilt your device to orbit the solar system.</div>
+  </div>
+
+  <div id="motionNoSensor" style="display:none;text-align:center;padding:10px">
+    <div style="font-size:1.4rem;margin-bottom:8px">🖥️</div>
+    <div style="font-size:.85rem;font-weight:600;margin-bottom:6px">No Gyroscope Detected</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Use keyboard arrow keys to control the camera.</div>
+    <button class="btn-primary" style="width:100%" onclick="startKeyboardMode()">⌨️ Enable Keyboard Mode</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div style="position:fixed;bottom:8px;right:16px;z-index:99;font-size:.68rem;color:rgba(255,255,255,0.28);letter-spacing:.06em;pointer-events:none;font-weight:500">
+  MADE BY ARUNAVA GHOSH &nbsp;|&nbsp; INDIA 🇮🇳
+</div>
+
+<script>
+// ================================================
+// NOISE / TEXTURE UTILITIES
+// ================================================
+function noise2(x,y,s){const n=Math.sin(x*127.1+y*311.7+s*91.3)*43758.5453;return n-Math.floor(n)}
+function lerp(a,b,t){return a+(b-a)*t}
+function smoothstep(t){return t*t*(3-2*t)}
+function snoise(x,y,s,sc){
+  x*=sc;y*=sc;
+  const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const ux=smoothstep(fx),uy=smoothstep(fy);
+  return lerp(lerp(noise2(ix,iy,s),noise2(ix+1,iy,s),ux),lerp(noise2(ix,iy+1,s),noise2(ix+1,iy+1,s),ux),uy);
+}
+function fbm(x,y,s,oct,sc){
+  let v=0,a=0.5,f=sc;
+  for(let i=0;i<oct;i++){v+=snoise(x,y,s+i*17,f)*a;f*=2;a*=0.5}
+  return v;
+}
+function makeCtx(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return[c,c.getContext('2d')]}
+
+// ================================================
+// TEXTURE GENERATORS
+// ================================================
+function sunTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const f=fbm(u*3,v*3,1,6,1),f2=fbm(u*5+f,v*5+f,42,4,1),n=f*.6+f2*.4;
+    const r=Math.min(255,200+n*120),g=Math.min(255,70+n*140),b=Math.max(0,n*40);
+    const i=(y*512+x)*4;id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function mercuryTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const n=fbm(u*4,v*4,5,6,1),c=fbm(u*10,v*10,55,4,1);
+    const base=100+n*60,crater=c>0.62?Math.max(0,base-(c-0.62)*500):base;
+    const val=Math.floor(Math.max(0,Math.min(255,crater)));
+    const i=(y*512+x)*4;id.data[i]=val+8;id.data[i+1]=val;id.data[i+2]=val-10;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function venusTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const s=fbm(u*3+Math.sin(v*7)*.3,v*3,7,5,1),s2=fbm(u*5,v*5+Math.cos(u*6)*.3,71,4,1),n=s*.6+s2*.4;
+    const r=Math.min(255,175+n*70),g=Math.min(255,135+n*60),b=Math.max(0,55+n*40);
+    const i=(y*512+x)*4;id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function earthTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256,lat=(v-.5)*Math.PI;
+    const n=fbm(u*3,v*3,3,7,1),n2=fbm(u*6+n,v*6+n,33,4,1),cont=n*.7+n2*.3;
+    const polar=Math.abs(lat)>1.2?1:Math.abs(lat)>1.0?(Math.abs(lat)-1.0)*5:0;
+    let r,g,b;
+    if(polar>.4){r=215+35*polar;g=225+25*polar;b=235+15*polar}
+    else if(cont>.52){
+      const alt=(cont-.52)*10;
+      if(alt>.6){r=150+alt*35;g=130+alt*25;b=90}else{r=55+alt*70;g=115+alt*45;b=35}
+    }else{
+      const d=1-(cont/.52);r=10+d*20;g=45+d*80;b=115+d*90;
+    }
+    const i=(y*512+x)*4;id.data[i]=Math.min(255,r);id.data[i+1]=Math.min(255,g);id.data[i+2]=Math.min(255,b);id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function cloudsTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const n=fbm(u*5,v*5,99,6,1);
+    const cl=n>.5?(n-.5)*4:0;
+    const i=(y*512+x)*4;id.data[i]=255;id.data[i+1]=255;id.data[i+2]=255;id.data[i+3]=Math.min(255,cl*240);
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function marsTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256,lat=(v-.5)*Math.PI;
+    const n=fbm(u*4,v*4,8,6,1),n2=fbm(u*9,v*9,88,3,1),d=n*.65+n2*.35;
+    const polar=Math.abs(lat)>1.3?1:Math.abs(lat)>1.1?(Math.abs(lat)-1.1)*5:0;
+    const crater=fbm(u*12,v*12,123,3,1);
+    const dim=crater>.68?0.75:1;
+    let r,g,b;
+    if(polar>.5){r=195;g=205;b=218}else{r=Math.min(255,155+d*90);g=Math.max(0,55+d*30);b=Math.max(0,25+d*10)}
+    const i=(y*512+x)*4;id.data[i]=Math.floor(r*dim);id.data[i+1]=Math.floor(g*dim);id.data[i+2]=Math.floor(b*dim);id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function jupiterTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  const bands=[
+    [0,.08,210,170,120],[.08,.05,178,135,95],[.13,.1,235,195,145],[.23,.07,155,115,75],
+    [.30,.12,225,185,135],[.42,.06,140,100,68],[.48,.04,245,205,155],[.52,.06,140,100,68],
+    [.58,.12,225,185,135],[.70,.07,155,115,75],[.77,.1,235,195,145],[.87,.05,178,135,95],[.92,.08,210,170,120]
+  ];
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const band=bands.find(b=>v>=b[0]&&v<b[0]+b[1])||bands[0];
+    const turb=fbm(u*10,v*50,22,3,1)*.18;
+    const wave=Math.sin(v*45+u*8)*.07;
+    const nm=fbm(u*14+wave,v*7,22,3,1)*.22;
+    // GRS
+    const gu=.46,gv=.52,grw=.09,grh=.04;
+    const grs=((u-gu)/grw)**2+((v-gv)/grh)**2;
+    let r=band[2]+turb*60+nm*40,g=band[3]+turb*40+nm*30,b=band[4]+turb*20+nm*10;
+    if(grs<1){const t=1-grs;r=r*(1-t)+210*t;g=g*(1-t)+75*t;b=b*(1-t)+55*t}
+    const i=(y*512+x)*4;id.data[i]=Math.min(255,r);id.data[i+1]=Math.min(255,g);id.data[i+2]=Math.min(255,b);id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function saturnTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const band=Math.sin(v*Math.PI*18)*.5+.5,turb=fbm(u*10,v*30,44,3,1)*.12;
+    const wave=Math.sin(v*22+u*6)*.05,nm=fbm(u*8+wave,v*5,44,3,1)*.15;
+    const r=Math.min(255,195+band*45+turb*40+nm*25),g=Math.min(255,165+band*35+turb*30+nm*18),b=Math.max(0,90+band*28+turb*15+nm*8);
+    const i=(y*512+x)*4;id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function saturnRingTex(){
+  const[cv,ctx]=makeCtx(512,64);
+  const id=ctx.createImageData(512,64);
+  for(let x=0;x<512;x++){
+    const t=x/512;
+    // Cassini division at ~0.44
+    const cassini=Math.abs(t-.44)<.04?.05:1;
+    // B ring dense, C ring faint, A ring medium
+    let density;
+    if(t<.15)density=.15+fbm(t*20,.5,66,3,1)*.15; // C ring faint
+    else if(t<.55)density=.7+fbm(t*20,.5,66,4,1)*.3; // B ring dense
+    else if(t<.6)density=cassini*.1; // Cassini gap
+    else density=.35+fbm(t*20,.5,66,3,1)*.35; // A ring
+    density*=cassini;
+    const nm=fbm(t*30,.5,77,3,1);
+    const rv=Math.min(255,200+nm*50),gv=Math.min(255,185+nm*40),bv=Math.min(255,148+nm*28);
+    const alpha=Math.floor(density*230);
+    for(let y=0;y<64;y++){const i=(y*512+x)*4;id.data[i]=rv;id.data[i+1]=gv;id.data[i+2]=bv;id.data[i+3]=alpha}
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function uranusTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const band=Math.sin(v*Math.PI*10)*.25+.75,nm=fbm(u*5,v*5,66,5,1)*.12;
+    const limb=4*v*(1-v); // darken edges
+    const r=Math.min(255,Math.floor((75+nm*65)*limb+75*(1-limb)));
+    const g=Math.min(255,Math.floor((195+band*40+nm*30)*limb+150*(1-limb)));
+    const b=Math.min(255,Math.floor((195+band*30+nm*20)*limb+170*(1-limb)));
+    const i=(y*512+x)*4;id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function neptuneTex(){
+  const[cv,ctx]=makeCtx(512,256);
+  const id=ctx.createImageData(512,256);
+  for(let y=0;y<256;y++)for(let x=0;x<512;x++){
+    const u=x/512,v=y/256;
+    const storm=fbm(u*6,v*6,88,6,1),band=Math.sin(v*Math.PI*10+storm*1.5)*.3+.7,nm=fbm(u*8+storm*.5,v*8,88,4,1);
+    // Dark spot
+    const ds=((u-.3)/.09)**2+((v-.4)/.05)**2,dsf=ds<1?.6:1;
+    const r=Math.min(255,Math.floor((18+band*28+nm*38)*dsf));
+    const g=Math.min(255,Math.floor((55+band*48+nm*48)*dsf));
+    const b=Math.min(255,Math.floor(155+band*82+nm*38));
+    const i=(y*512+x)*4;id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+function bumpTex(seed,sc){
+  const[cv,ctx]=makeCtx(256,128);
+  const id=ctx.createImageData(256,128);
+  for(let y=0;y<128;y++)for(let x=0;x<256;x++){
+    const n=fbm(x/256*sc,y/128*sc,seed,5,1);
+    const v=Math.floor(n*255);
+    const i=(y*256+x)*4;id.data[i]=v;id.data[i+1]=v;id.data[i+2]=v;id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);return new THREE.CanvasTexture(cv);
+}
+
+// ================================================
+// PLANET DATA
+// ================================================
+const PLANETS=[
+  {name:'Sun',type:'Star',color:'#FDB813',emoji:'☀️',radius:4.5,orbitR:0,speed:0,tiltX:.1,
+   stats:{Mass:'1.989×10³⁰ kg',Diameter:'1,392,700 km',Temp:'5,778 K',Age:'4.6B years'},
+   atmosphere:'Plasma photosphere, chromosphere and corona.',
+   composition:'73% Hydrogen, 25% Helium, 2% heavier elements.',
+   moons:[],funFact:'🌟 The Sun accounts for 99.86% of the solar system total mass.',
+   myth:'Greeks called it Helios, Romans Sol Invictus — the unconquered sun god.'},
+  {name:'Mercury',type:'Terrestrial Planet',color:'#b5b5b5',emoji:'☿',radius:.5,orbitR:8,speed:.04,tiltX:.03,
+   stats:{Mass:'3.30×10²³ kg',Diameter:'4,879 km',Distance:'57.9M km',Moons:'0'},
+   atmosphere:'Extremely thin exosphere: oxygen, sodium, hydrogen.',
+   composition:'Large iron core (~85% of radius), thin silicate mantle.',
+   moons:[],funFact:'🌡️ Temperature swings from −180°C at night to 430°C during the day.',
+   myth:'Named after Mercury, Roman messenger of the gods. Greek: Hermes.'},
+  {name:'Venus',type:'Terrestrial Planet',color:'#e8cda0',emoji:'♀️',radius:.95,orbitR:13,speed:.015,tiltX:.05,
+   stats:{Mass:'4.87×10²⁴ kg',Diameter:'12,104 km',Distance:'108.2M km',Moons:'0'},
+   atmosphere:'Dense CO₂ (96%), N₂ (3.5%), thick sulfuric acid clouds.',
+   composition:'Iron core, rocky silicate mantle and crust.',
+   moons:[],funFact:'🔄 Venus rotates backwards — the Sun rises in the west!',
+   myth:'Named after Venus, Roman goddess of love and beauty.'},
+  {name:'Earth',type:'Terrestrial Planet',color:'#4fc3f7',emoji:'🌍',radius:1,orbitR:18,speed:.01,tiltX:.41,
+   stats:{Mass:'5.97×10²⁴ kg',Diameter:'12,742 km',Distance:'149.6M km',Moons:'1'},
+   atmosphere:'78% N₂, 21% O₂, 1% Argon — perfect for life.',
+   composition:'Iron-nickel core, silicate mantle, ocean-covered crust.',
+   moons:['Moon'],funFact:'🌊 The only confirmed planet with active plate tectonics and life.',
+   myth:'Greeks: Gaia. Romans: Terra. The only planet not named after a deity in English.'},
+  {name:'Mars',type:'Terrestrial Planet',color:'#c1440e',emoji:'♂️',radius:.55,orbitR:25,speed:.008,tiltX:.44,
+   stats:{Mass:'6.42×10²³ kg',Diameter:'6,779 km',Distance:'227.9M km',Moons:'2'},
+   atmosphere:'95% CO₂, 3% N₂, 1.6% Argon — very thin.',
+   composition:'Iron, magnesium silicate rock; iron-oxide dusty surface.',
+   moons:['Phobos','Deimos'],funFact:'⛰️ Olympus Mons stands 21.9 km tall — nearly 3× the height of Everest!',
+   myth:'Named after Mars, Roman god of war, for its blood-red colour. Greek: Ares.'},
+  {name:'Jupiter',type:'Gas Giant',color:'#c88b3a',emoji:'♃',radius:2.5,orbitR:40,speed:.004,tiltX:.05,
+   stats:{Mass:'1.90×10²⁷ kg',Diameter:'139,820 km',Distance:'778.5M km',Moons:'95'},
+   atmosphere:'89% H₂, 10% He, ammonia clouds, Great Red Spot storm.',
+   composition:'Hydrogen/helium gas transitioning to metallic hydrogen core.',
+   moons:['Io','Europa','Ganymede','Callisto','…+91 more'],funFact:'🌀 The Great Red Spot is a storm larger than Earth, raging for 350+ years.',
+   myth:'Named after Jupiter, king of the Roman gods. Greek: Zeus.'},
+  {name:'Saturn',type:'Gas Giant',color:'#e4d19a',emoji:'♄',radius:2.1,orbitR:58,speed:.0033,tiltX:.47,hasRings:true,
+   stats:{Mass:'5.68×10²⁶ kg',Diameter:'116,460 km',Distance:'1.43B km',Moons:'146'},
+   atmosphere:'96% H₂, 3% He, ammonia and methane traces.',
+   composition:'Hydrogen/helium gas; iconic icy ring system.',
+   moons:['Titan','Enceladus','Mimas','Rhea','…+142 more'],funFact:'💍 Rings are 400,000 km wide but only ~10 metres thick!',
+   myth:'Named after Saturn, Roman god of agriculture and time. Greek: Kronos.'},
+  {name:'Uranus',type:'Ice Giant',color:'#7de8e8',emoji:'⛢',radius:1.6,orbitR:74,speed:.0025,tiltX:1.71,
+   stats:{Mass:'8.68×10²⁵ kg',Diameter:'50,724 km',Distance:'2.87B km',Moons:'28'},
+   atmosphere:'83% H₂, 15% He, 2% methane (gives blue-green colour).',
+   composition:'Water, methane, ammonia ices over a rocky core.',
+   moons:['Ariel','Umbriel','Titania','Oberon','Miranda'],funFact:'🔄 Uranus rotates on its side with a 98° axial tilt!',
+   myth:'The only planet with a Greek name: Ouranos, ancient god of the sky.'},
+  {name:'Neptune',type:'Ice Giant',color:'#3f5bbf',emoji:'♆',radius:1.55,orbitR:90,speed:.002,tiltX:.49,
+   stats:{Mass:'1.02×10²⁶ kg',Diameter:'49,244 km',Distance:'4.50B km',Moons:'16'},
+   atmosphere:'80% H₂, 19% He, 1.5% methane — fastest winds (2,100 km/h).',
+   composition:'Water, ammonia, methane ices; small rocky core.',
+   moons:['Triton','Proteus','Nereid','Larissa','…+12 more'],funFact:'💨 Neptune has the fastest winds in the solar system — 2,100 km/h!',
+   myth:'Named after Neptune, Roman god of the sea, for its deep blue. Greek: Poseidon.'}
+];
+
+// ================================================
+// THREE.JS SCENE
+// ================================================
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,2000);
+camera.position.set(0,60,130);
+
+// Stars
+function addStars(n,sz,spread,blueChance){
+  const geo=new THREE.BufferGeometry(),v=[],col=[];
+  for(let i=0;i<n;i++){
+    v.push((Math.random()-.5)*spread,(Math.random()-.5)*spread,(Math.random()-.5)*spread);
+    const t=.5+Math.random()*.5,blue=Math.random()<blueChance;
+    col.push(blue?t*.75:t,blue?t*.88:t,blue?t:t*.92);
+  }
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:sz,vertexColors:true,sizeAttenuation:true})));
+}
+addStars(7000,.32,1600,.25);
+addStars(1500,.65,1200,.15);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x111133,.55));
+const sunLight=new THREE.PointLight(0xfff8e0,4.5,500);
+scene.add(sunLight);
+
+// Build textures
+const TX={
+  Sun:sunTex(),Mercury:mercuryTex(),Venus:venusTex(),Earth:earthTex(),Mars:marsTex(),
+  Jupiter:jupiterTex(),Saturn:saturnTex(),Uranus:uranusTex(),Neptune:neptuneTex(),
+  Ring:saturnRingTex(),Clouds:cloudsTex()
+};
+const BMP={Mercury:bumpTex(5,8),Mars:bumpTex(8,7),Earth:bumpTex(3,5)};
+
+const planetMeshes=[],orbitLines=[],labelEls=[];
+
+PLANETS.forEach((p,i)=>{
+  const geo=new THREE.SphereGeometry(p.radius,64,40);
+  let mat;
+  if(p.name==='Sun'){
+    mat=new THREE.MeshBasicMaterial({map:TX.Sun});
+  }else{
+    mat=new THREE.MeshPhongMaterial({
+      map:TX[p.name]||null,
+      bumpMap:BMP[p.name]||null,
+      bumpScale:p.name==='Mercury'?.04:p.name==='Mars'?.05:.02,
+      shininess:['Uranus','Neptune'].includes(p.name)?45:['Jupiter','Saturn'].includes(p.name)?8:18,
+      specular:new THREE.Color(0x1a1a2e)
+    });
+  }
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.rotation.x=p.tiltX||0;
+  mesh.userData={planet:p,angle:Math.random()*Math.PI*2};
+  scene.add(mesh);
+  planetMeshes.push(mesh);
+
+  // Earth clouds
+  if(p.name==='Earth'){
+    const cm=new THREE.Mesh(
+      new THREE.SphereGeometry(p.radius*1.013,64,40),
+      new THREE.MeshPhongMaterial({map:TX.Clouds,transparent:true,opacity:.78,depthWrite:false})
+    );
+    cm.userData.isClouds=true;
+    mesh.add(cm);
+  }
+
+  // Saturn rings (textured with radial UV fix)
+  if(p.hasRings){
+    const rGeo=new THREE.RingGeometry(p.radius*1.32,p.radius*2.55,128);
+    const pos=rGeo.attributes.position,uv=rGeo.attributes.uv;
+    for(let j=0;j<pos.count;j++){
+      const r=Math.sqrt(pos.getX(j)**2+pos.getY(j)**2);
+      uv.setX(j,(r-p.radius*1.32)/(p.radius*2.55-p.radius*1.32));
+    }
+    rGeo.attributes.uv.needsUpdate=true;
+    const ring=new THREE.Mesh(rGeo,new THREE.MeshBasicMaterial({map:TX.Ring,side:THREE.DoubleSide,transparent:true,opacity:.92,depthWrite:false}));
+    ring.rotation.x=Math.PI/2.15;
+    mesh.add(ring);
+  }
+
+  // Sun corona glows
+  if(p.name==='Sun'){
+    [[1.18,0xff8800,.12],[1.42,0xff6600,.06],[1.75,0xff4400,.025]].forEach(([s,c,o])=>{
+      const g=new THREE.Mesh(new THREE.SphereGeometry(p.radius*s,32,20),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,depthWrite:false}));
+      scene.add(g);
+    });
+  }
+
+  // Orbit line (dashed look via vertex alpha)
+  if(p.orbitR>0){
+    const pts=[];
+    for(let a=0;a<=Math.PI*2+.05;a+=.025)pts.push(new THREE.Vector3(Math.cos(a)*p.orbitR,0,Math.sin(a)*p.orbitR));
+    const ol=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x334466,transparent:true,opacity:.3}));
+    scene.add(ol);orbitLines.push(ol);
+  }
+
+  // Label
+  const lbl=document.createElement('div');
+  lbl.style.cssText='position:fixed;color:#fff;font-size:11px;font-weight:600;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,1),0 0 10px rgba(0,0,0,.8);letter-spacing:.04em;z-index:50;transition:opacity .3s;white-space:nowrap';
+  lbl.textContent=p.emoji+' '+p.name;
+  document.body.appendChild(lbl);
+  labelEls.push(lbl);
+});
+
+// ================================================
+// CAMERA CONTROLS
+// ================================================
+let isDrag=false,prevM={x:0,y:0},mouseDownPos={x:0,y:0};
+let camTheta=.6,camPhi=.8,camR=140,tTheta=.6,tPhi=.8,tR=140;
+let focusMesh=null;
+
+function camUpdate(){
+  if(focusMesh){
+    const pos=focusMesh.position,pr=focusMesh.userData.planet.radius,dist=pr*8+10;
+    camera.position.lerp(new THREE.Vector3(pos.x+Math.sin(camTheta)*dist,pos.y+camPhi*dist*.4,pos.z+Math.cos(camTheta)*dist),.06);
+    camera.lookAt(pos);
+  }else{
+    camera.position.set(Math.sin(camTheta)*camR,camPhi*camR*.6,Math.cos(camTheta)*camR);
+    camera.lookAt(0,0,0);
+  }
+}
+const C=document.getElementById('c');
+C.addEventListener('mousedown',e=>{isDrag=true;prevM={x:e.clientX,y:e.clientY};mouseDownPos={x:e.clientX,y:e.clientY}});
+window.addEventListener('mouseup',()=>isDrag=false);
+window.addEventListener('mousemove',e=>{
+  if(!isDrag)return;
+  tTheta-=(e.clientX-prevM.x)*.005;
+  tPhi=Math.max(-1.2,Math.min(1.2,tPhi+(e.clientY-prevM.y)*.005));
+  prevM={x:e.clientX,y:e.clientY};
+});
+C.addEventListener('wheel',e=>{tR=Math.max(10,Math.min(450,tR+e.deltaY*.15));e.preventDefault()},{passive:false});
+let pinchD=null,lastT=null;
+C.addEventListener('touchstart',e=>{
+  if(e.touches.length===1)lastT={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  if(e.touches.length===2)pinchD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+},{passive:true});
+C.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&lastT){tTheta-=(e.touches[0].clientX-lastT.x)*.006;tPhi=Math.max(-1.2,Math.min(1.2,tPhi+(e.touches[0].clientY-lastT.y)*.006));lastT={x:e.touches[0].clientX,y:e.touches[0].clientY}}
+  if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);tR=Math.max(10,Math.min(450,tR-(d-pinchD)*.5));pinchD=d}
+},{passive:true});
+const ray=new THREE.Raycaster(),m2=new THREE.Vector2();
+C.addEventListener('click',e=>{
+  if(Math.hypot(e.clientX-mouseDownPos.x,e.clientY-mouseDownPos.y)>5)return;
+  m2.x=(e.clientX/innerWidth)*2-1;m2.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(m2,camera);
+  const hits=ray.intersectObjects(planetMeshes,true);
+  if(hits.length){let o=hits[0].object;while(o.parent&&!o.userData.planet)o=o.parent;if(o.userData.planet)showProfile(o.userData.planet,o)}
+});
+
+// ================================================
+// ANIMATION
+// ================================================
+let paused=false,showOrbits=true,showLabels=true,reducedMotion=false,timeOffset=0;
+const speedPresets=[1,2,5,10,.25];let speedIdx=0;
+let ttsOn=false,audioOn=false;
+const clock=new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=paused||reducedMotion?0:clock.getDelta();
+  const sp=speedPresets[speedIdx];
+  planetMeshes.forEach((mesh,i)=>{
+    const p=mesh.userData.planet;
+    if(!p.orbitR){mesh.rotation.y+=dt*.04;return}
+    mesh.userData.angle+=p.speed*sp*dt*.5;
+    const ang=mesh.userData.angle+(timeOffset*p.speed*.1);
+    mesh.position.set(Math.cos(ang)*p.orbitR,0,Math.sin(ang)*p.orbitR);
+    mesh.rotation.y+=dt*.2*sp*(p.name==='Venus'?-1:1);
+    const cl=mesh.children.find(c=>c.userData.isClouds);
+    if(cl)cl.rotation.y+=dt*.05*sp;
+  });
+  camTheta+=(tTheta-camTheta)*.08;camPhi+=(tPhi-camPhi)*.08;camR+=(tR-camR)*.08;
+  camUpdate();
+  orbitLines.forEach(l=>l.visible=showOrbits);
+  planetMeshes.forEach((mesh,i)=>{
+    const lbl=labelEls[i];
+    if(!showLabels){lbl.style.opacity='0';return}
+    const pos=mesh.position.clone().project(camera);
+    if(pos.z>1){lbl.style.opacity='0';return}
+    lbl.style.left=((pos.x*.5+.5)*innerWidth)+'px';
+    lbl.style.top=((-pos.y*.5+.5)*innerHeight-PLANETS[i].radius*15-12)+'px';
+    lbl.style.opacity='1';
+  });
+  const now=new Date();now.setDate(now.getDate()+timeOffset);
+  document.getElementById('hudDate').textContent=now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  renderer.render(scene,camera);
+  gravTick();
+}
+animate();
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+// ================================================
+// UI FUNCTIONS
+// ================================================
+function showProfile(planet,mesh){
+  document.getElementById('rightPanel').classList.add('open');
+  document.getElementById('profSphere').style.background=`radial-gradient(circle at 35% 35%, white, ${planet.color}, #0a0a1a)`;
+  document.getElementById('profName').textContent=planet.name;
+  document.getElementById('profType').textContent=planet.type;
+  document.getElementById('profStats').innerHTML=Object.entries(planet.stats).map(([k,v])=>`<div class="stat-card"><div class="stat-label">${k}</div><div class="stat-value">${v}</div></div>`).join('');
+  document.getElementById('profAtmo').textContent=planet.atmosphere;
+  document.getElementById('profComp').textContent=planet.composition;
+  document.getElementById('moonSection').style.display=planet.moons.length?'block':'none';
+  document.getElementById('profMoons').innerHTML=planet.moons.map(m=>`<span class="moon-chip">${m}</span>`).join('');
+  document.getElementById('profMyth').textContent=planet.myth;
+  document.getElementById('profFact').textContent=planet.funFact;
+  document.getElementById('hudFocus').textContent=planet.name;
+  focusMesh=mesh;
+  if(ttsOn)speak(`${planet.name}. ${planet.funFact}`);
+}
+function closeRight(){document.getElementById('rightPanel').classList.remove('open');focusMesh=null;document.getElementById('hudFocus').textContent='Sun'}
+function toggleLeft(){document.getElementById('leftPanel').classList.toggle('open')}
+function toggleSearch(){document.getElementById('searchWrap').classList.toggle('show');document.getElementById('searchInput').focus()}
+function toggleTime(){document.getElementById('timePanel').classList.toggle('show');updateTimeDisplay()}
+function toggleCompare(){document.getElementById('comparePanel').classList.toggle('show');initCompare()}
+function toggleGrav(){document.getElementById('gravPanel').classList.toggle('show')}
+function toggleMissions(){document.getElementById('missionPanel').classList.toggle('show');buildMissions()}
+function toggleOrbits(){showOrbits=!showOrbits;document.getElementById('btnOrbits').textContent='Orbits '+(showOrbits?'ON':'OFF')}
+function toggleLabels(){showLabels=!showLabels;document.getElementById('btnLabels').textContent='Labels '+(showLabels?'ON':'OFF')}
+function togglePause(){paused=!paused;document.getElementById('btnPause').textContent=paused?'▶ Play':'⏸ Pause'}
+function resetCamera(){tTheta=.6;tPhi=.8;tR=140;focusMesh=null}
+function cycleSpeed(){speedIdx=(speedIdx+1)%speedPresets.length;document.getElementById('btnSpeed').textContent=speedPresets[speedIdx]+'x Speed'}
+function doSearch(val){
+  const res=document.getElementById('searchResults');
+  if(!val.trim()){res.innerHTML='';return}
+  const ms=PLANETS.filter(p=>p.name.toLowerCase().includes(val.toLowerCase()));
+  res.innerHTML=ms.length?ms.map(p=>`<div class="search-item" onclick="selectSearch('${p.name}')"><div class="search-dot" style="background:${p.color}"></div>${p.emoji} ${p.name}<span style="margin-left:auto;font-size:.75rem;color:var(--muted)">${p.type}</span></div>`).join(''):'<div class="search-item" style="color:var(--muted)">No results</div>';
+}
+function selectSearch(name){
+  const i=PLANETS.findIndex(p=>p.name===name);
+  if(i>=0)showProfile(PLANETS[i],planetMeshes[i]);
+  document.getElementById('searchWrap').classList.remove('show');
+  document.getElementById('searchResults').innerHTML='';
+  document.getElementById('searchInput').value='';
+}
+
+// Planet list
+document.getElementById('planetList').innerHTML=PLANETS.map((p,i)=>`<button class="planet-btn" onclick="showProfile(PLANETS[${i}],planetMeshes[${i}])"><div class="planet-dot" style="background:${p.color}"></div>${p.emoji} ${p.name}<span class="planet-info-mini">${p.type.split(' ')[0]}</span></button>`).join('');
+document.getElementById('quickFacts').innerHTML='🌌 8 planets orbit the Sun<br>⭐ Sun is a G-type main-sequence star<br>📏 Solar system ~287 AU wide<br>🕰️ Age: ~4.6 billion years<br>🪐 300+ known moons total';
+
+// Time travel
+function onTimeSlide(v){timeOffset=parseInt(v);updateTimeDisplay()}
+function updateTimeDisplay(){const d=new Date();d.setDate(d.getDate()+timeOffset);document.getElementById('timeDisplay').textContent=`📅 ${d.toDateString()} (${timeOffset>=0?'+':''}${timeOffset} days)`}
+function setTP(v){document.getElementById('timeSlider').value=v;timeOffset=v;updateTimeDisplay()}
+updateTimeDisplay();
+
+// Compare
+function initCompare(){
+  const a=document.getElementById('compA'),b=document.getElementById('compB');
+  if(a.options.length)return;
+  PLANETS.forEach(p=>{a.add(new Option(p.name,p.name));b.add(new Option(p.name,p.name))});
+  b.selectedIndex=1;drawCompare();
+}
+function drawCompare(){
+  const cv=document.getElementById('compareCanvas'),ctx=cv.getContext('2d');
+  const W=cv.offsetWidth||250,H=100;
+  cv.width=W;cv.height=H;ctx.clearRect(0,0,W,H);
+  const pA=PLANETS.find(p=>p.name===document.getElementById('compA').value);
+  const pB=PLANETS.find(p=>p.name===document.getElementById('compB').value);
+  const mx=Math.max(pA.radius,pB.radius),sc=(H*.42)/mx;
+  const rA=Math.max(3,pA.radius*sc),rB=Math.max(3,pB.radius*sc);
+  [['compA',pA,W*.28,rA],['compB',pB,W*.72,rB]].forEach(([,p,cx,r])=>{
+    const g=ctx.createRadialGradient(cx-r*.25,H/2-r*.25,1,cx,H/2,r);
+    g.addColorStop(0,'rgba(255,255,255,.8)');g.addColorStop(.5,p.color);g.addColorStop(1,'#0a0a1a');
+    ctx.beginPath();ctx.arc(cx,H/2,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='11px sans-serif';ctx.textAlign='center';
+    ctx.fillText(p.name,cx,H/2+r+12);
+  });
+  document.getElementById('compareText').textContent=`${pA.name} is ${(pA.radius/pB.radius).toFixed(2)}x the size of ${pB.name}`;
+}
+
+// Quiz
+const QUIZ=[
+  {q:'Which planet has the most moons?',opts:['Jupiter','Saturn','Uranus','Neptune'],ans:1,exp:'Saturn has 146 confirmed moons!'},
+  {q:'What is the largest planet in our solar system?',opts:['Saturn','Neptune','Jupiter','Uranus'],ans:2,exp:'Jupiter could fit all other planets inside it.'},
+  {q:'Which planet rotates on its side?',opts:['Neptune','Uranus','Venus','Mars'],ans:1,exp:'Uranus has a 98° axial tilt.'},
+  {q:'How long does sunlight take to reach Earth?',opts:['8 seconds','8 minutes','8 hours','8 days'],ans:1,exp:'~8 minutes 20 seconds at 149.6 million km.'},
+  {q:'What gives Mars its red colour?',opts:['Red vegetation','Iron oxide (rust)','Volcanic dust','Ancient gods'],ans:1,exp:'Iron oxide (rust) coats the entire surface.'},
+  {q:'Which is the hottest planet?',opts:['Mercury','Venus','Mars','Jupiter'],ans:1,exp:'Venus\'s greenhouse effect makes it 465°C average.'},
+  {q:'What are Saturn\'s rings mainly made of?',opts:['Gas','Dust','Ice & rock','Metallic hydrogen'],ans:2,exp:'90–95% water ice with rocky debris.'},
+  {q:'Which planet has the Great Red Spot?',opts:['Saturn','Neptune','Jupiter','Mars'],ans:2,exp:'A storm larger than Earth, raging 350+ years.'},
+];
+let qIdx=0,qScore=0,qAnswered=false;
+function openModal(id){document.getElementById(id).classList.add('show');if(id==='quizModal')initQuiz();if(id==='persModal')initPers()}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function initQuiz(){qIdx=0;qScore=0;renderQuiz()}
+function renderQuiz(){
+  const c=document.getElementById('quizContent');
+  if(qIdx>=QUIZ.length){c.innerHTML=`<div class="quiz-score">🎉 ${qScore}/${QUIZ.length}</div><p style="text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:14px">${qScore>=6?'You are a space expert!':qScore>=4?'Great knowledge!':'Keep exploring the cosmos!'}</p><div style="text-align:center"><button class="btn-primary" onclick="initQuiz()">Play Again</button></div>`;return}
+  const q=QUIZ[qIdx];qAnswered=false;
+  c.innerHTML=`<div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Q${qIdx+1}/${QUIZ.length} · Score: ${qScore}</div><div class="quiz-q">${q.q}</div><div class="quiz-options">${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="answerQ(${i})">${o}</button>`).join('')}</div><div id="qEx" style="display:none;font-size:.82rem;color:var(--muted);padding:8px;background:var(--surface);border-radius:8px;margin-bottom:12px"></div><div id="qNx" style="display:none;text-align:right"><button class="btn-primary" onclick="qIdx++;renderQuiz()">Next →</button></div>`;
+}
+function answerQ(i){
+  if(qAnswered)return;qAnswered=true;const q=QUIZ[qIdx];
+  document.querySelectorAll('.quiz-opt')[i].classList.add(i===q.ans?'correct':'wrong');
+  if(i===q.ans)qScore++;else document.querySelectorAll('.quiz-opt')[q.ans].classList.add('correct');
+  document.getElementById('qEx').style.display='block';document.getElementById('qEx').textContent='💡 '+q.exp;
+  document.getElementById('qNx').style.display='block';
+}
+
+// Personality
+const PQ=[
+  {q:'Your ideal weekend?',opts:['Reading & learning','Wild adventure','Quiet introspection','Social gatherings','Creative projects']},
+  {q:'Pick a superpower:',opts:['Time travel','Super speed','Invisibility','Telepathy','Regeneration']},
+  {q:'Your vibe?',opts:['Mysterious','Bold & fiery','Calm & wise','Playful','Ancient & powerful']},
+  {q:'Fav weather?',opts:['Stormy','Sunny & hot','Misty','Breezy','Icy cold']},
+  {q:'Spirit animal?',opts:['Owl','Cheetah','Wolf','Dolphin','Elephant']},
+];
+const PM=['Mercury','Mars','Neptune','Venus','Jupiter','Earth','Saturn','Uranus','Mercury','Jupiter','Neptune','Mars','Venus','Uranus','Earth','Saturn','Mercury','Jupiter','Neptune','Mars','Venus','Saturn','Earth','Uranus','Neptune'];
+let pAns=[],pQ=0;
+function initPers(){pAns=[];pQ=0;renderPers()}
+function renderPers(){
+  const c=document.getElementById('persContent');
+  if(pQ>=PQ.length){
+    const pname=PM[pAns.reduce((a,b)=>a+b,0)%25];
+    const planet=PLANETS.find(p=>p.name===pname);
+    c.innerHTML=`<div style="font-size:2.5rem;text-align:center;margin:10px 0">${planet.emoji}</div><div style="font-size:1.3rem;font-weight:700;text-align:center;color:var(--accent)">${planet.name}</div><div style="font-size:.85rem;text-align:center;color:var(--muted);margin-top:8px">${planet.funFact}</div><div style="text-align:center;margin-top:16px"><button class="btn-primary" onclick="initPers()">Retake</button></div>`;
+    return;
+  }
+  const q=PQ[pQ];
+  c.innerHTML=`<div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Q${pQ+1}/${PQ.length}</div><div class="pers-question">${q.q}</div><div class="pers-opts">${q.opts.map((o,i)=>`<button class="pers-opt" onclick="pAns.push(${i});pQ++;renderPers()">${o}</button>`).join('')}</div>`;
+}
+
+// Missions
+const MISSIONS=[
+  {name:'Perseverance Rover',status:'active',loc:'Jezero Crater, Mars',desc:'Searching for signs of ancient microbial life and collecting rock samples since Feb 2021.'},
+  {name:'James Webb Space Telescope',status:'active',loc:'L2 Lagrange Point',desc:'Most powerful space telescope, observing the universe in infrared since 2022.'},
+  {name:'Voyager 1',status:'active',loc:'Interstellar Space (23.8B km)',desc:'Launched 1977, the farthest human-made object — now in interstellar space.'},
+  {name:'Parker Solar Probe',status:'active',loc:'Near the Sun',desc:'The fastest spacecraft, flying closer to the Sun than any before it.'},
+  {name:'Artemis Program',status:'active',loc:'Earth–Moon System',desc:'NASA\'s programme to return humans to the Moon.'},
+  {name:'New Horizons',status:'active',loc:'Kuiper Belt',desc:'First to visit Pluto in 2015, now exploring the outer solar system.'},
+  {name:'Cassini-Huygens',status:'ended',loc:'Saturn (2004–2017)',desc:'Studied Saturn for 13 years; Huygens landed on Titan in 2005.'},
+];
+function buildMissions(){document.getElementById('missionList').innerHTML=MISSIONS.map(m=>`<div class="mission-card"><div class="mission-name">${m.name}</div><span class="mission-status ${m.status==='active'?'mission-active':'mission-ended'}">${m.status.toUpperCase()}</span><div style="font-size:.75rem;color:var(--accent2);margin-bottom:4px">📍 ${m.loc}</div><div class="mission-desc">${m.desc}</div></div>`).join('')}
+
+// Gravity sim
+const gCv=document.getElementById('gravCanvas'),gCtx=gCv.getContext('2d');
+let gravObjs=[];
+gCv.addEventListener('click',e=>{
+  const r=gCv.getBoundingClientRect(),x=(e.clientX-r.left)*(gCv.width/r.width),y=(e.clientY-r.top)*(gCv.height/r.height);
+  const cx=gCv.width/2,cy=gCv.height/2,dx=cx-x,dy=cy-y,d=Math.hypot(dx,dy)||1;
+  gravObjs.push({x,y,vx:(-dy/d)*2.5,vy:(dx/d)*2.5,r:4,color:`hsl(${Math.random()*360},80%,60%)`});
+});
+function addRandGrav(){
+  const w=gCv.width,h=gCv.height,cx=w/2,cy=h/2,x=Math.random()*w,y=Math.random()*h,dx=cx-x,dy=cy-y,d=Math.hypot(dx,dy)||1;
+  gravObjs.push({x,y,vx:(-dy/d)*(2+Math.random()*2),vy:(dx/d)*(2+Math.random()*2),r:Math.floor(2+Math.random()*5),color:`hsl(${Math.random()*360},80%,60%)`});
+}
+function clearGrav(){gravObjs=[]}
+function gravTick(){
+  if(!document.getElementById('gravPanel').classList.contains('show'))return;
+  const w=gCv.width,h=gCv.height,cx=w/2,cy=h/2;
+  gCtx.fillStyle='rgba(0,0,0,.2)';gCtx.fillRect(0,0,w,h);
+  const sg=gCtx.createRadialGradient(cx-4,cy-4,2,cx,cy,18);
+  sg.addColorStop(0,'#fffbe0');sg.addColorStop(.7,'#ff8800');sg.addColorStop(1,'rgba(255,80,0,0)');
+  gCtx.beginPath();gCtx.arc(cx,cy,18,0,Math.PI*2);gCtx.fillStyle=sg;gCtx.fill();
+  gravObjs=gravObjs.filter(o=>{
+    const dx=cx-o.x,dy=cy-o.y,d=Math.hypot(dx,dy);
+    if(d<20)return false;
+    const f=3000/(d*d);o.vx+=f*(dx/d)*.016;o.vy+=f*(dy/d)*.016;o.x+=o.vx;o.y+=o.vy;
+    if(o.x<-60||o.x>w+60||o.y<-60||o.y>h+60)return false;
+    gCtx.beginPath();gCtx.arc(o.x,o.y,o.r,0,Math.PI*2);gCtx.fillStyle=o.color;gCtx.fill();
+    return true;
+  });
+}
+
+// Audio
+function toggleAudio(){
+  audioOn=!audioOn;document.getElementById('audioBar').classList.toggle('show',audioOn);
+  if(audioOn)playTour();
+}
+function playTour(){
+  if(!audioOn)return;
+  const lines=['Welcome to CosmosExplorer.','The Sun contains 99.86 percent of the solar system total mass.','Mercury has the most extreme temperature swings of any planet.','Venus is the hottest planet despite not being closest to the Sun.','Earth is the only confirmed life-bearing world in the cosmos.','Mars hosts Olympus Mons, the tallest volcano in the solar system.','Jupiter\'s Great Red Spot has raged for over 350 years.','Saturn\'s rings span 400,000 kilometres but are just 10 metres thick.','Uranus rotates completely on its side.','Neptune has the fastest winds in the solar system at 2,100 kilometres per hour.'];
+  let i=0;function n(){if(!audioOn||i>=lines.length)return;speak(lines[i++]);setTimeout(n,6000)}n();
+}
+function speak(t){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.9;window.speechSynthesis.speak(u)}
+function toggleA11y(){document.getElementById('a11yBar').classList.toggle('show')}
+
+// ================================================
+// ================================================
+// MOTION SENSOR — robust multi-mode implementation
+// ================================================
+let motionEnabled   = false;
+let motionMode      = 'none'; // 'gyro' | 'keyboard' | 'none'
+let motionPermState = 'unknown'; // 'unknown'|'granted'|'denied'|'unavailable'
+
+// Raw & smoothed sensor values
+let mRawA=0, mRawB=0, mRawG=0;
+let mSmA=0,  mSmB=0,  mSmG=0;
+let mCalA=0, mCalB=0, mCalG=0;
+const SM = 0.15; // smoothing factor
+
+// Keyboard state
+const keysHeld = {};
+let kbTheta=0, kbPhi=0;
+
+// ── Open / close panel ──
+function toggleMotionPanel() {
+  const hud = document.getElementById('motionHUD');
+  const open = hud.classList.toggle('show');
+  if (open) buildMotionPanel();
+}
+
+function buildMotionPanel() {
+  hide('motionPermBox'); hide('motionDeniedBox');
+  hide('motionMain');    hide('motionNoSensor');
+
+  const hasAPI = ('DeviceOrientationEvent' in window);
+  const needsPerm = hasAPI && (typeof DeviceOrientationEvent.requestPermission === 'function');
+
+  if (!hasAPI) {
+    // Desktop or unsupported — offer keyboard mode
+    show('motionNoSensor');
+    return;
+  }
+
+  if (needsPerm) {
+    // iOS 13+
+    if (motionPermState === 'granted') {
+      openMotionMain('gyro');
+    } else if (motionPermState === 'denied') {
+      show('motionDeniedBox');
+    } else {
+      show('motionPermBox');
+    }
+  } else {
+    // Android, Chrome desktop, Firefox — no permission needed
+    motionPermState = 'granted';
+    openMotionMain('gyro');
+    attachGyroListener();
+  }
+}
+
+// ── iOS permission request ──
+function requestMotionPermission() {
+  // Must be called synchronously inside a user gesture
+  if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    motionPermState = 'granted';
+    buildMotionPanel();
+    return;
+  }
+
+  // Disable button while waiting
+  const btn = document.getElementById('motionPermBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Waiting for permission…'; }
+
+  DeviceOrientationEvent.requestPermission()
+    .then(result => {
+      if (result === 'granted') {
+        motionPermState = 'granted';
+        attachGyroListener();
+        buildMotionPanel();
+        showToast('📡 Gyroscope enabled! Tilt your device to explore.');
+      } else {
+        motionPermState = 'denied';
+        buildMotionPanel();
+        showToast('⚠️ Motion access denied. See instructions below.');
+      }
+    })
+    .catch(err => {
+      motionPermState = 'denied';
+      buildMotionPanel();
+      showToast('⚠️ Permission error: ' + err.message);
+    });
+}
+
+function retryMotionPermission() {
+  motionPermState = 'unknown';
+  buildMotionPanel();
+}
+
+// ── Attach gyro listener ──
+function attachGyroListener() {
+  window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+  window.addEventListener('deviceorientation', onDeviceOrientation, true);
+}
+
+function onDeviceOrientation(e) {
+  // Some Android devices fire with all zeros — ignore
+  if (e.alpha === null && e.beta === null && e.gamma === null) return;
+
+  mRawA = e.alpha || 0;
+  mRawB = e.beta  || 0;
+  mRawG = e.gamma || 0;
+
+  // Exponential smoothing
+  mSmA += SM * (mRawA - mSmA);
+  mSmB += SM * (mRawB - mSmB);
+  mSmG += SM * (mRawG - mSmG);
+
+  const dA = mSmA - mCalA;
+  const dB = mSmB - mCalB;
+  const dG = mSmG - mCalG;
+
+  // Update readouts if panel is open
+  if (document.getElementById('motionHUD').classList.contains('show')) {
+    setText('mAlpha', mRawA.toFixed(1) + '°');
+    setText('mBeta',  mRawB.toFixed(1) + '°');
+    setText('mGamma', mRawG.toFixed(1) + '°');
+
+    // Bubble visualiser
+    const bx = Math.max(8, Math.min(92, 50 + dG * 0.9));
+    const by = Math.max(8, Math.min(92, 50 + (dB - 45) * 0.9));
+    const bubble = document.getElementById('motionBubble');
+    bubble.style.left = bx + '%';
+    bubble.style.top  = by + '%';
+    document.getElementById('motionLine').style.transform =
+      `rotate(${-dG * 0.55}deg) translateY(${(dB - 45) * 0.45}px)`;
+  }
+
+  // Drive camera
+  if (motionEnabled && motionMode === 'gyro') {
+    const sens = (parseFloat(document.getElementById('motionSens').value) || 5) / 300;
+    tTheta = -dG * sens * 3.2;
+    tPhi   = Math.max(-1.1, Math.min(1.1, (dB - 45) * sens));
+  }
+}
+
+// ── Open the main controls panel ──
+function openMotionMain(mode) {
+  motionMode = mode;
+  show('motionMain');
+  const badge = document.getElementById('motionModeBadge');
+  if (mode === 'gyro') {
+    badge.innerHTML = '<span class="motion-live-dot" style="animation:pulse 1s infinite"></span> Gyroscope Mode';
+    document.getElementById('kbHint').style.display = 'none';
+    document.getElementById('motionHint').textContent = 'Tilt your device to orbit the solar system.';
+  } else {
+    badge.innerHTML = '⌨️ Keyboard Mode';
+    document.getElementById('kbHint').style.display = 'block';
+    document.getElementById('motionHint').textContent = 'Use arrow keys to rotate the view.';
+  }
+}
+
+// ── Keyboard mode ──
+function startKeyboardMode() {
+  motionMode = 'keyboard';
+  hide('motionNoSensor'); hide('motionDeniedBox'); hide('motionPermBox');
+  openMotionMain('keyboard');
+  // Auto-enable when entering keyboard mode
+  const toggle = document.getElementById('motionToggle');
+  toggle.checked = true;
+  onMotionToggle(true);
+  showToast('⌨️ Keyboard mode on — use arrow keys to rotate!');
+}
+
+// Keyboard handling
+window.addEventListener('keydown', e => {
+  keysHeld[e.key] = true;
+  // Prevent arrow key scrolling when motion is on
+  if (motionEnabled && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', e => { keysHeld[e.key] = false; });
+
+function processKeyboard() {
+  if (!motionEnabled || motionMode !== 'keyboard') return;
+  const sens = (parseFloat(document.getElementById('motionSens').value) || 5);
+  const step = keysHeld['Shift'] ? 0.003 : 0.012;
+  const sp = step * sens / 5;
+  if (keysHeld['ArrowLeft'])  tTheta -= sp;
+  if (keysHeld['ArrowRight']) tTheta += sp;
+  if (keysHeld['ArrowUp'])    tPhi = Math.max(-1.1, tPhi - sp * 0.6);
+  if (keysHeld['ArrowDown'])  tPhi = Math.min(1.1,  tPhi + sp * 0.6);
+
+  // Mirror to readouts for fun
+  if (document.getElementById('motionHUD').classList.contains('show')) {
+    setText('mAlpha', (tTheta * 57.3).toFixed(1) + '°');
+    setText('mBeta',  (tPhi   * 57.3).toFixed(1) + '°');
+    setText('mGamma', '—');
+    const bx = Math.max(8, Math.min(92, 50 + tTheta * 30));
+    const by = Math.max(8, Math.min(92, 50 + tPhi   * 50));
+    document.getElementById('motionBubble').style.left = bx + '%';
+    document.getElementById('motionBubble').style.top  = by  + '%';
+  }
+}
+
+// Hook keyboard processing into the main animation loop
+const _origAnimate = animate;
+// We'll call processKeyboard() inside the existing animate loop — patch it
+(function patchAnimate() {
+  // Already called every frame via animate() — we add a hook
+  const origR = renderer.render.bind(renderer);
+  renderer.render = function(s, c) {
+    processKeyboard();
+    origR(s, c);
+  };
+})();
+
+// ── Toggle ON/OFF ──
+function onMotionToggle(checked) {
+  motionEnabled = checked;
+  const dot = document.getElementById('motionLiveDot');
+  const btn = document.getElementById('motionBtn');
+  if (checked) {
+    if (motionMode === 'gyro') calibrateMotion();
+    dot.className = 'motion-live-dot';
+    btn.classList.add('active');
+    showToast(motionMode === 'gyro' ? '📡 Motion ON — tilt to explore!' : '⌨️ Keyboard mode ON!');
+  } else {
+    dot.className = 'motion-off-dot';
+    btn.classList.remove('active');
+    showToast('Motion control OFF — touch controls restored.');
+  }
+}
+
+// ── Calibrate: save current orientation as neutral ──
+function calibrateMotion() {
+  mCalA = mSmA; mCalB = mSmB; mCalG = mSmG;
+  kbTheta = tTheta; kbPhi = tPhi;
+  showToast('⊕ Calibrated — current position is now center.');
+}
+
+function resetMotionCam() {
+  tTheta = 0.6; tPhi = 0.8; tR = 140; focusMesh = null;
+  kbTheta = 0; kbPhi = 0;
+}
+
+// ── Sensitivity label ──
+document.getElementById('motionSens').addEventListener('input', function() {
+  document.getElementById('motionSensVal').textContent = this.value;
+});
+
+// ── Helpers ──
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function setText(id, v) { const el=document.getElementById(id); if(el) el.textContent = v; }
+
+// ── Auto-attach for non-iOS devices immediately ──
+(function autoAttach() {
+  if (!('DeviceOrientationEvent' in window)) return;
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') return; // iOS — wait for user tap
+  attachGyroListener();
+  motionPermState = 'granted';
+})();
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000)}
+
+setTimeout(()=>{document.getElementById('loading').classList.add('done');showToast('🪐 Welcome! Click a planet to explore. Drag to rotate. Scroll to zoom.');},1800);
+</script>
+</body>
+</html>
