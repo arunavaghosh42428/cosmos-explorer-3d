@@ -8,9 +8,8 @@
 
 ## 🚀 Live Demo
 
-> Open `[solar-system.html](https://arunavaghosh42428.github.io/cosmos-explorer-3d/)` directly in any modern browser — no server needed.
-<a href="https://www.google.com">Go to Google</a>
----
+> Open <a href="[https://www.google.com](https://arunavaghosh42428.github.io/cosmos-explorer-3d/)">[solar-system.html]</a> directly in any modern browser — no server needed.
+
 
 ## ✨ Features
 
